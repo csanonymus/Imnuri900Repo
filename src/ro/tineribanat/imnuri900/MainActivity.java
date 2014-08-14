@@ -10,12 +10,18 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import ro.tineribanat.imnuriazsmr.R;
 
 import android.app.Activity;
+import android.app.LauncherActivity;
+import android.app.ProgressDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.res.AssetManager;
@@ -25,11 +31,12 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.textservice.TextInfo;
 import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -37,10 +44,17 @@ import android.widget.ListView;
 
 public class MainActivity extends Activity implements TextWatcher {
 
+	boolean imnReady = false;
+	boolean firstTimeLoadingSpinner = false;
+	boolean choosingHymn = true;
+	boolean inCategory = false;
+	ProgressDialog progress;
+
 	String title, number, content;
 
 	LinearLayout llSearch;
 	ListView listView;
+	ListViewRow lvr;
 
 	EditText etSearchString;
 	DatabaseHelper database;
@@ -48,6 +62,22 @@ public class MainActivity extends Activity implements TextWatcher {
 	ArrayList<String> list = new ArrayList<String>();
 	Document doc;
 	List<Node> docNodes;
+	List<ListViewRow> listViewText;
+
+	Runnable updateProgress;
+	String progressValue;
+
+	final String[] categories = { "Cantari de lauda", "Cantari de dimineata",
+			"Cantari de seara", "Cantari de deschidere",
+			"Cantari de inchidere", "Cantari de Sabat", "Iubirea lui Dumnezeu",
+			"Nasterea lui Isus", "Viata si lucrarea lui Isus",
+			"Jertfa lui Isus", "Bucuria mantuirii", "Pocainta", "Consacrare",
+			"Recunostinta", "Incredere", "Lupta credintei", "Mangaiere",
+			"Nadejdea mantuirii", "Revenirea lui Isus",
+			"Dor de patria cereasca", "Biruinta", "Calea vietii",
+			"Duhul Sfant", "Familia", "Indemn si avertizare", "Misionare",
+			"Sfanta cina/Botez", "Nunta", "Inmormantare", "Casa Domnului",
+			"Natura", "Pentru cei mici", "Diverse", "Supliment" };
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -59,18 +89,44 @@ public class MainActivity extends Activity implements TextWatcher {
 		SharedPreferences sp = this.getSharedPreferences("initialStart",
 				MODE_PRIVATE);
 		String isFirstTime = sp.getString("firstTime", null);
-		if (isFirstTime == "no") {
+		if (isFirstTime != null) {
 			populateListView();
 		} else {
 			Editor e = sp.edit();
-			e.putString("initialStart", "no");
+			e.putString("firstTime", "no");
 			e.commit();
-			initialInsert();
-			populateListView();
+			buildAlertDialog();
+			Thread t = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					// TODO Auto-generated method stub
+
+					initialInsert();
+					listView.post(new Runnable() {
+						@Override
+						public void run() {
+							// TODO Auto-generated method stub
+							populateListView();
+						}
+					});
+				}
+			});
+			t.start();
+
 		}
 	}
 
 	private void init() {
+		listViewText = new ArrayList<ListViewRow>();
+		updateProgress = new Runnable() {
+
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
+				progress.setMessage("Baza de date se pregateste. Va rugam sa aveti rabdare..."
+						+ progressValue + " %");
+			}
+		};
 		database = new DatabaseHelper(this);
 
 		docNodes = new ArrayList<Node>();
@@ -85,25 +141,68 @@ public class MainActivity extends Activity implements TextWatcher {
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
 				// TODO Auto-generated method stub
+				if (choosingHymn) {
+					lvr = listViewText.get(position);
+					String title = lvr.title;
+					String number = lvr.number;
 
+					Intent i = new Intent(MainActivity.this, ShowHymn.class);
+					i.putExtra("title", title);
+					i.putExtra("number", number);
+					MainActivity.this.startActivity(i);
+					overridePendingTransition(R.anim.slide_in_right,
+							R.anim.slide_out_left);
+				} else {
+					String chosenCategory = categories[position];
+					loadACategory(chosenCategory);
+					choosingHymn = true;
+					inCategory = true;
+				}
 			}
 		});
 	}
 
+	private void buildAlertDialog() {
+		firstTimeLoadingSpinner = true;
+		progress = new ProgressDialog(this);
+		progress.setCancelable(false);
+		progress.setMessage("Baza de date se pregateste. Va rugam sa aveti rabdare...0 %");
+		progress.show();
+		// To dismiss the dialog
+		// progress.dismiss();
+	}
+
 	private void populateListView() {
 		Cursor cData = database.getAll();
-		if (cData != null) {
-			if (cData.moveToFirst()) {
+		loadCursor(cData);
+		if (firstTimeLoadingSpinner) {
+			progress.dismiss();
+		}
+	}
+
+	private void loadCursor(Cursor c) {
+		String mazare = "2";
+		list.clear();
+		listViewText.clear();
+		ArrayAdapter<String> listAdapter = new ArrayAdapter<String>(this,
+				android.R.layout.simple_list_item_1, list);
+		listView.setAdapter(listAdapter);
+		if (c != null) {
+			if (c.moveToFirst()) {
 				do {
-					String number = cData.getString(cData
-							.getColumnIndex("tNumber"));
-					String title = cData.getString(cData
-							.getColumnIndex("tName"));
+					String number = c.getString(c.getColumnIndex("tNumber"));
+					String title = c.getString(c.getColumnIndex("tName"));
+
+					lvr = new ListViewRow();
+					lvr.number = number;
+					lvr.title = title;
+					listViewText.add(lvr);
+
 					list.add(number + ". " + title);
-				} while (cData.moveToNext());
+				} while (c.moveToNext());
 			}
 		}
-		ArrayAdapter<String> listAdapter = new ArrayAdapter<String>(this,
+		listAdapter = new ArrayAdapter<String>(this,
 				android.R.layout.simple_list_item_1, list);
 		listView.setAdapter(listAdapter);
 	}
@@ -126,25 +225,31 @@ public class MainActivity extends Activity implements TextWatcher {
 			}
 
 			for (int i = 0; i < docNodes.size(); i++) {
+				int progressPercentage = i / 9;
+				if (progressPercentage % 5 == 0) {
+					progressValue = progressPercentage + "";
+					runOnUiThread(updateProgress);
+				}
 				Node imn = docNodes.get(i);
-				NodeList imnList = imn.getChildNodes();
-				for (int j = 0; j < imnList.getLength(); j++) {
-					Node nodeItem = imnList.item(j);
-					String tagTitle = nodeItem.getNodeName().toString();
+
+				Element hymn = (Element) docNodes.get(i);
+				String sheet = hymn.getAttribute("IMG");
+				String mp3 = hymn.getAttribute("MP3");
+				NodeList imnNodes = imn.getChildNodes();
+				for (int j = 0; j < imnNodes.getLength(); j++) {
+					Node nodeItem = imnNodes.item(j);
+					String tagName = nodeItem.getNodeName().toString();
 					if (nodeItem.getClass().getName().contains("ElementImpl")) {
-						// String habarnam = "da e ok";
-						// }
-						// if (!tagTitle.equals(new String("#text"))) {
-						if (tagTitle.equals(new String("Titlu"))) {
-							Node hymnTitle = imnList.item(j).getFirstChild();
+						if (tagName.equals(new String("Titlu"))) {
+							Node hymnTitle = imnNodes.item(j).getFirstChild();
 							title = hymnTitle.getNodeValue().toString();
-						} else if (tagTitle.equals(new String("Numar"))) {
-							Node hymnNumber = imnList.item(j).getFirstChild();
+						} else if (tagName.equals(new String("Numar"))) {
+							Node hymnNumber = imnNodes.item(j).getFirstChild();
 							number = hymnNumber.getNodeValue().toString();
-						} else { // Strofe //acolo nue chiar gata..Mai am putin de calculat ::)))ok
-							NodeList strofe = imnList.item(j).getChildNodes();
+						} else {
+							NodeList strofe = imnNodes.item(j).getChildNodes();
 							content = "";
-							for (int k = 0; k < strofe.getLength(); k++) {
+							for (int k = 2; k < strofe.getLength(); k++) {
 
 								if (strofe.item(k).getClass().getName()
 										.contains("ElementImpl")) {
@@ -155,21 +260,21 @@ public class MainActivity extends Activity implements TextWatcher {
 									content += "\n\r\n\r";
 								}
 							}
+							imnReady = true;
 						}
-					} else {
-						/*
-						 * String[] a = null; NodeList hymn = imnList; a[0] =
-						 * hymn.item(0).getNodeName().toString(); a[1] =
-						 * hymn.item(1).getNodeName().toString(); a[2] =
-						 * hymn.item(2).getNodeName().toString(); a[3] =
-						 * hymn.item(3).getNodeName().toString(); a[4] =
-						 * hymn.item(4).getNodeName().toString(); a[5] =
-						 * hymn.item(5).getNodeName().toString(); a[6] =
-						 * hymn.item(6).getNodeName().toString(); int alpha = 2;
-						 * alpha += 1;
-						 */
 					}
-					Log.i("APP", imnList.item(j).getNodeName().toString());
+
+					if (imnReady) {
+						imnReady = false;
+						boolean inserted = false;
+						inserted = database.insert(number, title, content,
+								sheet, mp3);
+						if (!inserted) {
+							// alert!!!!
+						} else {
+							continue;
+						}
+					}
 				}
 				String val = imn.getNodeName().toString();
 
@@ -218,10 +323,49 @@ public class MainActivity extends Activity implements TextWatcher {
 		// automatically handle clicks on the Home/Up button, so long
 		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
-		if (id == R.id.action_settings) {
+		if (id == R.id.action_cat) {
+			inCategory = true;
+			choosingHymn = false;
+			list.clear();
+			ArrayAdapter<String> listAdapter = new ArrayAdapter<String>(this,
+					android.R.layout.simple_list_item_1, list);
+			listView.setAdapter(listAdapter);
+
+			loadCategories();
+
 			return true;
-		}
+		} else if (id == R.id.action_all) {
+			inCategory = false;
+			choosingHymn = true;
+			populateListView();
+			choosingHymn = true;
+		} /*else if (id == R.id.action_settings) {
+			return true;
+			Intent i = new Intent(this, Settings.class);
+			startActivity(i);
+		}*/
 		return super.onOptionsItemSelected(item);
+	}
+
+	private void loadCategories() {
+		choosingHymn = false;
+
+		for (int i = 0; i < categories.length; i++) {
+			list.add(categories[i]);
+		}
+		ArrayAdapter<String> listAdapter = new ArrayAdapter<String>(this,
+				android.R.layout.simple_list_item_1, list);
+		listView.setAdapter(listAdapter);
+	}
+
+	private void loadACategory(String categoryToLoad) {
+		Cursor content = database.getCategory(categoryToLoad);
+		if (content != null) {
+			if (content.moveToFirst()) {
+				choosingHymn = false;
+				loadCursor(content);
+			}
+		}
 	}
 
 	private void setLLSearchDimensions() {
@@ -252,8 +396,40 @@ public class MainActivity extends Activity implements TextWatcher {
 	@Override
 	public void afterTextChanged(Editable s) {
 		// TODO Auto-generated method stub
-		String text = etSearchString.getText().toString();
-		Cursor c = database.queryFor(text);
+		list.clear();
 
+		String text = etSearchString.getText().toString();
+		if (text.equals(new String(""))) {
+			populateListView();
+		} else {
+			Cursor c = database.queryFor(text);
+			loadCursor(c);
+		}
+	}
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		// TODO Auto-generated method stub
+
+		if (keyCode == KeyEvent.KEYCODE_BACK) {
+			if(inCategory && choosingHymn) {
+				Cursor cData = database.getAll();
+				loadCursor(cData);
+				choosingHymn = true;
+				inCategory = false;
+				return false;
+			}
+			if (inCategory && !choosingHymn) {
+				Cursor cData = database.getAll();
+				loadCursor(cData);
+				choosingHymn = true;
+				return false;
+			}
+			if(choosingHymn && !inCategory) {
+				finish();
+				return true;
+			}
+		}
+		return false;
 	}
 }
