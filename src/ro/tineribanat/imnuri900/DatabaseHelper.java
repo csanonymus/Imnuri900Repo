@@ -1,18 +1,25 @@
 package ro.tineribanat.imnuri900;
 
+import java.util.List;
+
 import android.content.Context;
 import android.database.Cursor;
+import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.os.Handler;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
 	private static String DB_NAME = "Imnuri";
 	private static int DB_VERSION = 1;
 
+	Handler userInterface;
+
 	public DatabaseHelper(Context context) {
 		super(context, DB_NAME, null, DB_VERSION);
+		userInterface = new Handler(context.getMainLooper());
 		// TODO Auto-generated constructor stub
 	}
 
@@ -75,6 +82,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return false;
 	}
 
+	public void insertAll(List<String> queries) {
+		SQLiteDatabase d = this.getWritableDatabase();
+		d.beginTransaction();
+		try {
+			int size = queries.size();
+			for (int i = 0; i < size; i++) {
+				d.execSQL(queries.get(i));
+			}
+			d.setTransactionSuccessful();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		} finally {
+			d.endTransaction();
+		}
+		d.close();
+	}
+
 	public Cursor getAll() {
 		SQLiteDatabase database = this.getReadableDatabase();
 		Cursor c = database.rawQuery("SELECT * FROM Imnuri;", null);
@@ -87,17 +112,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	public Cursor queryFor(String text) {
 		String localQuery = null;
-		boolean withNumber = false;
 		SQLiteDatabase sqlite = this.getReadableDatabase();
 		Integer myNumber = null;
 		try {
 			myNumber = Integer.parseInt(text);
 			localQuery = "SELECT * FROM Imnuri WHERE tNumber LIKE '" + myNumber
 					+ "%';";
-			withNumber = true;
 		} catch (NumberFormatException e) {
-			text = text.substring(0, 1).toUpperCase()
-					+ text.substring(1, text.length());
+			//text = text.substring(0, 1).toUpperCase() + text.substring(1, text.length());
 			localQuery = "SELECT * FROM Imnuri WHERE tName LIKE ' " + text
 					+ "%';";
 		}
@@ -120,7 +142,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return c;
 	}
 
-	private String getCategory(int number) {
+	public static String getCategory(int number) {
 		String returner = null;
 		if ((number >= 1) && (number <= 73)) {
 			returner = "Cantari de lauda";

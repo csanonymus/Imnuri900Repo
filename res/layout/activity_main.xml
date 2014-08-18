@@ -27,16 +27,16 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:ems="10"
             android:hint="@string/search_hint"
-            android:inputType="textNoSuggestions"
-            android:ems="10" >
+            android:inputType="textNoSuggestions" >
 
             <requestFocus />
         </EditText>
-
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/linearLayout1"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_alignLeft="@+id/llSearch"
@@ -48,7 +48,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" >
         </ListView>
-
     </LinearLayout>
 
 </RelativeLayout>

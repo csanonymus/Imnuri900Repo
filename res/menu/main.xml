@@ -14,10 +14,10 @@
         android:orderInCategory="101"
         android:title="Afisare toate"
         app:showAsAction="never"/>
-    <!-- <item
-        android:id="@+id/action_settings"
-        android:orderInCategory="101"
-        android:title="Setari"
-        app:showAsAction="never"/> -->
+     <item
+        android:id="@+id/action_random"
+        android:orderInCategory="102"
+        android:title="Aleatoriu"
+        app:showAsAction="never"/> 
 
 </menu>

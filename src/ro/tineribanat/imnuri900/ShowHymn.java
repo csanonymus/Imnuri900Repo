@@ -10,7 +10,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.os.Bundle;
-import android.util.Log;
+import android.view.KeyEvent;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
@@ -56,7 +56,7 @@ public class ShowHymn extends Activity {
 
 		hymnNumber = b.getString("number");
 		hymnTitle = b.getString("title");
-
+		
 		Cursor c = database.queryFor(hymnNumber);
 		if (c != null && c.moveToFirst()) {
 			int count = c.getCount();
@@ -64,9 +64,6 @@ public class ShowHymn extends Activity {
 			String title = c.getString(c.getColumnIndex("tName"));
 			String hymn = c.getString(c.getColumnIndex("tContent"));
 			String category = c.getString(c.getColumnIndex("tCategory"));
-
-			Log.i("APP", title + "   ///////   " + category + "  aaaaaaa   "
-					+ hymn);
 			tvTitle.setText(number + ". " + title);
 			tvHymn.setText(hymn);
 			tvCategory.setText(category);
@@ -137,5 +134,17 @@ public class ShowHymn extends Activity {
 			}
 		});
 		
+	}
+	
+	
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		// TODO Auto-generated method stub
+
+		if (keyCode == KeyEvent.KEYCODE_BACK) {
+			finish();
+			return true;
+		}
+		return false;
 	}
 }

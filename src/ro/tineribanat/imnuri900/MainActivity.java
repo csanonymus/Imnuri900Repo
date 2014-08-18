@@ -27,10 +27,12 @@ import android.content.SharedPreferences.Editor;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.format.Time;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -63,9 +65,10 @@ public class MainActivity extends Activity implements TextWatcher {
 	Document doc;
 	List<Node> docNodes;
 	List<ListViewRow> listViewText;
-
-	Runnable updateProgress;
-	String progressValue;
+	
+	public static String progressValue;
+	
+	public Handler handler;
 
 	final String[] categories = { "Cantari de lauda", "Cantari de dimineata",
 			"Cantari de seara", "Cantari de deschidere",
@@ -78,12 +81,16 @@ public class MainActivity extends Activity implements TextWatcher {
 			"Duhul Sfant", "Familia", "Indemn si avertizare", "Misionare",
 			"Sfanta cina/Botez", "Nunta", "Inmormantare", "Casa Domnului",
 			"Natura", "Pentru cei mici", "Diverse", "Supliment" };
+	
+	//Timing 
+	long start, stop, time;
+	
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-
+		start = System.currentTimeMillis();//Timing start
 		setLLSearchDimensions();
 		init();
 		SharedPreferences sp = this.getSharedPreferences("initialStart",
@@ -117,16 +124,9 @@ public class MainActivity extends Activity implements TextWatcher {
 	}
 
 	private void init() {
+		
 		listViewText = new ArrayList<ListViewRow>();
-		updateProgress = new Runnable() {
-
-			@Override
-			public void run() {
-				// TODO Auto-generated method stub
-				progress.setMessage("Baza de date se pregateste. Va rugam sa aveti rabdare..."
-						+ progressValue + " %");
-			}
-		};
+		
 		database = new DatabaseHelper(this);
 
 		docNodes = new ArrayList<Node>();
@@ -166,10 +166,8 @@ public class MainActivity extends Activity implements TextWatcher {
 		firstTimeLoadingSpinner = true;
 		progress = new ProgressDialog(this);
 		progress.setCancelable(false);
-		progress.setMessage("Baza de date se pregateste. Va rugam sa aveti rabdare...0 %");
+		progress.setMessage("Generez baza de date. Va rugam asteptati...");
 		progress.show();
-		// To dismiss the dialog
-		// progress.dismiss();
 	}
 
 	private void populateListView() {
@@ -178,10 +176,10 @@ public class MainActivity extends Activity implements TextWatcher {
 		if (firstTimeLoadingSpinner) {
 			progress.dismiss();
 		}
+		stop = System.currentTimeMillis();
 	}
 
 	private void loadCursor(Cursor c) {
-		String mazare = "2";
 		list.clear();
 		listViewText.clear();
 		ArrayAdapter<String> listAdapter = new ArrayAdapter<String>(this,
@@ -208,6 +206,9 @@ public class MainActivity extends Activity implements TextWatcher {
 	}
 
 	private void initialInsert() {
+		
+		
+		List<String> queries = new ArrayList<String>();
 		try {
 			AssetManager assetManager = getAssets();
 			InputStream is;
@@ -225,11 +226,6 @@ public class MainActivity extends Activity implements TextWatcher {
 			}
 
 			for (int i = 0; i < docNodes.size(); i++) {
-				int progressPercentage = i / 9;
-				if (progressPercentage % 5 == 0) {
-					progressValue = progressPercentage + "";
-					runOnUiThread(updateProgress);
-				}
 				Node imn = docNodes.get(i);
 
 				Element hymn = (Element) docNodes.get(i);
@@ -265,23 +261,27 @@ public class MainActivity extends Activity implements TextWatcher {
 					}
 
 					if (imnReady) {
+						String query = "INSERT INTO Imnuri ('tNumber','tName','tContent', 'tCategory', 'tHasSheet', 'tHasMP3' "
+								+ ") VALUES ("
+								+ number
+								+ ", "
+								+ "'"
+								+ title
+								+ "',"
+								+ "'"
+								+ content
+								+ "','"
+								+ DatabaseHelper.getCategory(Integer.parseInt(number))
+								+ "','"
+								+ sheet
+								+ "','"
+								+ mp3 + "');";
+						queries.add(query);
 						imnReady = false;
-						boolean inserted = false;
-						inserted = database.insert(number, title, content,
-								sheet, mp3);
-						if (!inserted) {
-							// alert!!!!
-						} else {
-							continue;
-						}
 					}
 				}
-				String val = imn.getNodeName().toString();
-
 			}
-			int x = 1;
-			x += 5.3;
-			Log.i("APP", n.item(0).getNodeName() + "");
+			database.insertAll(queries);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -297,13 +297,10 @@ public class MainActivity extends Activity implements TextWatcher {
 			InputSource inputSource = new InputSource(inputStream);
 			document = db.parse(inputSource);
 		} catch (ParserConfigurationException e) {
-			Log.e("Error: ", e.getMessage());
 			return null;
 		} catch (SAXException e) {
-			Log.e("Error: ", e.getMessage());
 			return null;
 		} catch (IOException e) {
-			Log.e("Error: ", e.getMessage());
 			return null;
 		}
 		return document;
@@ -339,7 +336,11 @@ public class MainActivity extends Activity implements TextWatcher {
 			choosingHymn = true;
 			populateListView();
 			choosingHymn = true;
-		} /*else if (id == R.id.action_settings) {
+		} else if(id == R.id.action_random){
+			Intent i = new Intent(this, Random.class);
+			startActivity(i);
+		}
+		/*else if (id == R.id.action_settings) {
 			return true;
 			Intent i = new Intent(this, Settings.class);
 			startActivity(i);
