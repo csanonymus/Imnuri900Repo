@@ -1,0 +1,21 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="ro.tineribanat.imnuri900.MainActivity" >
+
+    <item android:id="@+id/action_share"
+        android:showAsAction="ifRoom"
+        android:title="Share"
+        android:actionProviderClass="android.widget.ShareActionProvider" />
+    
+    <item
+        android:id="@+id/action_open_sheet"
+        android:orderInCategory="100"
+        android:title="Deschide Partitura"/>
+    
+    <item
+        android:id="@+id/action_loadmp3"
+        android:orderInCategory="100"
+        android:title="Play MP3"/>
+
+</menu>

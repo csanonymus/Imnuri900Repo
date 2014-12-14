@@ -2,6 +2,7 @@ package ro.tineribanat.imnuri900;
 
 import java.util.List;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.SQLException;
@@ -9,10 +10,12 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
+import android.util.Log;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
-	private static String DB_NAME = "Imnuri";
+	private static String DB_NAME = "Imnuri.db";
+	private static String TABLE_NAME = "Imnuri";
 	private static int DB_VERSION = 1;
 
 	Handler userInterface;
@@ -26,33 +29,95 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	@Override
 	public void onCreate(SQLiteDatabase db) {
 		// TODO Auto-generated method stub
-		String stringToExecute = "CREATE TABLE Imnuri ( "
+		String stringToExecute = "CREATE TABLE "+TABLE_NAME+" ( "
 				+ "tId INTEGER PRIMARY KEY AUTOINCREMENT,"
 				+ "tName TEXT NOT NULL," + "tNumber INTEGER NOT NULL,"
 				+ "tContent TEXT NOT NULL, " + "tCategory TEXT NOT NULL,"
-				+ "tHasSheet TEXT NOT NULL," + "tHasMP3 TEXT NOT NULL);";
+				+ "tIsFavorited TEXT NOT NULL);";
 		db.execSQL(stringToExecute);
 	}
 
 	@Override
 	public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 		// TODO Auto-generated method stub
+		if (DB_VERSION == 2) {
+			Cursor c = db.rawQuery("SELECT * FROM 'Imnuri';", null);
+			if (c != null) {
+				c.moveToFirst();
+			}
+			int isFavoritedColumnExists = c.getColumnIndex("tIsFavorited");
+			if (isFavoritedColumnExists == -1) {
+				db.execSQL("ALTER TABLE 'Imnuri' ADD COLUMN 'tIsFavorited' INTEGER DEFAULT 0;");
+			}
+		}
+		
+	}
 
+	public void addFavorite(String hymnNumber) {
+		SQLiteDatabase database = this.getWritableDatabase();
+		int valueToSet = 1;
+		ContentValues newValues = new ContentValues();
+		newValues.put("tIsFavorited", valueToSet);
+		int affected = database.update(TABLE_NAME, newValues, "tNumber = "
+				+ hymnNumber, null);
+		Log.i("APP", affected + "");
+		/*
+		 * database.execSQL("UPDATE 'Imnuri' SET 'tIsFavorited'=" + valueToSet +
+		 * " WHERE 'tNumber' = " + hymnNumber + "; ");
+		 */
+	}
+
+	public boolean isFavorite(String hymnNumber) {
+		SQLiteDatabase database = this.getReadableDatabase();
+		String sql = "SELECT * FROM 'Imnuri' WHERE tNumber LIKE " + hymnNumber
+				+ ";";
+		Cursor c = database.rawQuery(sql, null);
+		if (c != null) {
+			Log.i("APP", c.getCount() + "");
+			if (c.moveToFirst()) {
+				int favorited = c.getInt(c.getColumnIndex("tIsFavorited"));
+				if (favorited == 1) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				return false;
+			}
+		}
+		return false;
+	}
+
+	public Cursor getAllFavorites() {
+		SQLiteDatabase database = this.getReadableDatabase();
+		int isFavorite = 1;
+		String sql = "SELECT * FROM 'Imnuri' WHERE tIsFavorited LIKE "
+				+ isFavorite + ";";
+		Cursor c = database.rawQuery(sql, null);
+		Log.i("APP",c.getCount()+"");
+		if (c != null && c.moveToFirst()) {
+			return c;
+		}
+		return null;
+	}
+
+	public void removeFavorite(String hymnNumber) {
+		SQLiteDatabase database = this.getWritableDatabase();
+		int valueToSet = 0;
+		ContentValues newValues = new ContentValues();
+		newValues.put("tIsFavorited", valueToSet);
+		int affected = database.update(TABLE_NAME, newValues, "tNumber = "
+				+ hymnNumber, null);
+		Log.i("APP", affected + "");
 	}
 
 	public boolean insert(String hymnNumber, String hymnTitle,
 			String hymnContent, String hasSheet, String hasMP3) {
-		boolean mp3 = false, sheet = false;
-		if (hasMP3.equals(new String("true"))) {
-			mp3 = true;
-		}
-		if (hasSheet.equals(new String("true"))) {
-			sheet = true;
-		}
+		int initialValueFavorited = 0;
 		int number = Integer.parseInt(hymnNumber);
-		String category = this.getCategory(number);
+		String category = getCategory(number);
 		SQLiteDatabase d = this.getWritableDatabase();
-		String query = "INSERT INTO Imnuri ('tNumber','tName','tContent', 'tCategory', 'tHasSheet', 'tHasMP3' "
+		String query = "INSERT INTO Imnuri ('tNumber','tName','tContent', 'tCategory', 'tIsFavorited'"
 				+ ") VALUES ("
 				+ hymnNumber
 				+ ", "
@@ -64,9 +129,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 				+ "','"
 				+ category
 				+ "','"
-				+ sheet
-				+ "','"
-				+ mp3 + "');";
+				+ initialValueFavorited + "');";
 		boolean added = false;
 		try {
 			d.execSQL(query);
@@ -119,7 +182,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			localQuery = "SELECT * FROM Imnuri WHERE tNumber LIKE '" + myNumber
 					+ "%';";
 		} catch (NumberFormatException e) {
-			//text = text.substring(0, 1).toUpperCase() + text.substring(1, text.length());
+			// text = text.substring(0, 1).toUpperCase() + text.substring(1,
+			// text.length());
 			localQuery = "SELECT * FROM Imnuri WHERE tName LIKE ' " + text
 					+ "%';";
 		}
@@ -171,7 +235,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		} else if ((number >= 270) && (number <= 302)) {
 			returner = "Consacrare";
 		} else if ((number >= 303) && (number <= 339)) {
-			returner = "Recunostinta";
+			returner = "Rugaciune";
 		} else if ((number >= 340) && (number <= 355)) {
 			returner = "Recunostinta";
 		} else if ((number >= 356) && (number <= 445)) {

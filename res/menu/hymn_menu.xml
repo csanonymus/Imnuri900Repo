@@ -1,0 +1,36 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="ro.tineribanat.imnuri900.MainActivity" >
+
+    <item
+        android:id="@+id/action_download_sheet"
+        android:orderInCategory="100"
+        android:title="Descarca Partitura"/>
+    <item
+        android:id="@+id/action_open_sheet"
+        android:orderInCategory="100"
+        android:title="Afiseaza Partitura"/>
+    <item
+        android:id="@+id/action_share"
+        android:actionProviderClass="android.widget.ShareActionProvider"
+        android:showAsAction="ifRoom"
+        android:title="Share"/>
+    <item
+        android:id="@+id/action_loadmp3"
+        android:orderInCategory="100"
+        android:title="Incarca MP3"/>
+    <item
+        android:id="@+id/action_playmp3"
+        android:orderInCategory="100"
+        android:title="Play MP3"/>
+    <item
+        android:id="@+id/action_stopmp3"
+        android:orderInCategory="100"
+        android:title="Stop MP3"/>
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="100"
+        android:title="Setari"/>
+
+</menu>

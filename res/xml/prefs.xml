@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <PreferenceCategory
+        android:summary="Grapfica"
+        android:title="Aspect" >
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="nightMode"
+            android:summaryOff="Mod nocturn dezactivat"
+            android:summaryOn="Mod nocturn activat"
+            android:title="Mod Nocturn" />
+
+        <Preference
+            android:key="textSize"
+            android:title="Marime Text" />
+        <Preference
+            android:key="actionBarColor"
+            android:title="Culoare Bara de actiuni" />
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:summary="Dezvoltator"
+        android:title="Dezvoltator" >
+        <Preference
+            android:key="donate"
+            android:summary="Daca iti place aplicatia aceasta, poti multumi dezvoltatorului acesteia dand click aici sau navigand la pagina imnuri.tineribanat.ro/doneaza . Multumesc!"
+            android:title="Ajuta dezvoltatorul aplicatiei" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

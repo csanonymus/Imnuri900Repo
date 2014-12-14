@@ -1,7 +1,11 @@
-package ro.tineribanat.imnuri900;
+package ro.tineribanat.imnuri900.fragment;
 
 import java.io.File;
 
+import ro.tineribanat.imnuri900.DatabaseHelper;
+import ro.tineribanat.imnuri900.ImageProcessor;
+import ro.tineribanat.imnuri900.Preferences;
+import ro.tineribanat.imnuri900.SoundProcessor;
 import ro.tineribanat.imnuri900.workers.BarColorizer;
 import ro.tineribanat.imnuri900.workers.PrefManager;
 import ro.tineribanat.imnuriazsmr.R;
@@ -17,18 +21,19 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.PowerManager;
-import android.os.PowerManager.WakeLock;
+import android.support.v4.app.Fragment;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.View.OnTouchListener;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -40,7 +45,7 @@ import android.widget.ShareActionProvider;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class ShowHymn extends Activity implements OnTouchListener {
+public class ShowHymnFragment extends Fragment implements OnTouchListener {
 
 	TextView tvTitle, tvHymn, tvCategory;
 	ImageView ivSheet, ivMP3, ivFavorited;
@@ -66,8 +71,6 @@ public class ShowHymn extends Activity implements OnTouchListener {
 	ImageProcessor ip;
 	File musicSheet;
 
-	int favoriteHeartButton, mediaButtons, sheetAndMediaButtons;
-
 	Intent sharingIntent = null;
 	public static boolean isMusicPlaying = false;
 
@@ -86,90 +89,89 @@ public class ShowHymn extends Activity implements OnTouchListener {
 
 	ScrollView swScroll;
 	boolean sdkPermits = false;
-	
-	WakeLock wakeLock;
 
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		// TODO Auto-generated method stub
+	Context appContext;
 
-		prefs = new PrefManager(getApplicationContext());
+	public ShowHymnFragment(Context c, String hymnNumber) {
+		// TODO Auto-generated constructor stub
+		this.hymnNumber = hymnNumber;
+		this.appContext = c;
+	}
+
+	public View onCreateView(LayoutInflater inflater, ViewGroup container,
+			Bundle savedInstanceState) {
+
+		View rootView = inflater.inflate(R.layout.fragment_categories,
+				container, false);
+
+		rootView.setOnTouchListener(new OnTouchListener() {
+
+			@Override
+			public boolean onTouch(View v, MotionEvent event) {
+				// TODO Auto-generated method stub
+				int pointers = event.getPointerCount();
+				if (pointers == 3) {
+
+				} else if (pointers == 2) {
+					int action = event.getAction();
+					int pureaction = action & MotionEvent.ACTION_MASK;
+					if (pureaction == MotionEvent.ACTION_POINTER_DOWN) {
+						mBaseDist = getDistance(event);
+						mBaseRatio = mRatio;
+					} else {
+						float delta = (getDistance(event) - mBaseDist) / STEP;
+						float multi = (float) Math.pow(2, delta);
+						mRatio = Math.min(1024.0f,
+								Math.max(0.1f, mBaseRatio * multi));
+						if (mRatio > 1.0f) {
+							mRatio = 1.0f;
+						}
+						tvHymn.setTextSize(mRatio * maxFontSize);
+						hymnTextSize.setProgress((int) (mRatio * maxFontSize));
+					}
+				}
+				return true;
+			}
+		});
+
+		prefs = new PrefManager(getActivity());
 		boolean night = prefs.getNightMode();
 		if (night) {
-			setTheme(R.style.ThemeHoloDark);
+			getActivity().setTheme(R.style.ThemeHoloDark);
 		}
 
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_show_hymn);
-
-		DisplayMetrics dm = new DisplayMetrics();
-		getWindowManager().getDefaultDisplay().getMetrics(dm);
-		int width = dm.widthPixels;
-		int height = dm.heightPixels;
-
-		favoriteHeartButton = width / 6;
-		mediaButtons = width / 6;
-		sheetAndMediaButtons = width / 6;
+		getActivity().setContentView(R.layout.activity_show_hymn);
 
 		init();
 		showText();
 		initShare();
+
+		return rootView;
 	}
 
 	public boolean dispatchTouchEvent(MotionEvent ev) {
 
-		super.dispatchTouchEvent(ev);
+		super.getActivity().dispatchTouchEvent(ev);
 
 		return gestureDetector.onTouchEvent(ev);
 
 	}
-	
-	@Override
-	protected void onPause() {
-		// TODO Auto-generated method stub
-		super.onPause();
-		if (isMusicPlaying) {
-			sound.stop();
-		}
-		
-		if(isFinishing()) {
-			sound.destroy();
-			database.close();
-			
-			bmpPause.recycle();
-			bmpPlay.recycle();
-			bmpStop.recycle();
-			heart.recycle();
-		}
-		wakeLock.release();
-	}
 
-	@Override
-	protected void onRestart() {
-		// TODO Auto-generated method stub
-		super.onRestart();
-		finish();
-		startActivity(getIntent());
-	}
-	@Override
-	protected void onResume() {
-		// TODO Auto-generated method stub
-		super.onResume();
-		int progress = prefs.getHymnTextSize();
-		tvHymn.setTextSize(progress);
-		hymnTextSize.setProgress(progress);
-		wakeLock.acquire();
-	}
+	/*
+	 * @Override protected void onStop() { // TODO Auto-generated method stub
+	 * super.onStop(); if (isMusicPlaying) { sound.stop(); } }
+	 * 
+	 * @Override protected void onRestart() { // TODO Auto-generated method stub
+	 * super.onRestart(); finish(); startActivity(getIntent()); }
+	 * 
+	 * @Override protected void onDestroy() { // TODO Auto-generated method stub
+	 * super.onDestroy(); sound.destroy(); database.close(); }
+	 */
 
 	private void showText() {
 		int textSize = prefs.getHymnTextSize();
 		tvHymn.setTextSize(textSize);
-
-		Intent i = getIntent();
-		Bundle b = i.getExtras();
-
-		hymnNumber = b.getString("number");
-		hymnTitle = b.getString("title");
 
 		Cursor c = database.queryFor(hymnNumber);
 		if (c != null && c.moveToFirst()) {
@@ -190,16 +192,16 @@ public class ShowHymn extends Activity implements OnTouchListener {
 					bitmap = BitmapFactory.decodeResource(getResources(),
 							R.drawable.musicsheet);
 				}
-				Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap,
-						sheetAndMediaButtons, sheetAndMediaButtons, false);
+				Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, 100,
+						100, false);
 				ivSheet.setImageBitmap(scaledBitmap);
 			}
 			if (Integer.parseInt(hymnNumber) <= 777) {
 				new BitmapFactory();
 				Bitmap bitmap = BitmapFactory.decodeResource(getResources(),
 						R.drawable.mp3);
-				Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap,
-						sheetAndMediaButtons, sheetAndMediaButtons, false);
+				Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, 100,
+						100, false);
 				ivMP3.setImageBitmap(scaledBitmap);
 			}
 			textReady = true;
@@ -227,24 +229,28 @@ public class ShowHymn extends Activity implements OnTouchListener {
 		sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, shareBody);
 	}
 
-	
+	/*
+	 * @Override protected void onResume() { // TODO Auto-generated method stub
+	 * super.onResume(); int progress = prefs.getHymnTextSize();
+	 * tvHymn.setTextSize(progress); hymnTextSize.setProgress(progress); }
+	 */
 
 	@SuppressWarnings("deprecation")
 	private void init() {
-		sound = new SoundProcessor(this);
-		ip = new ImageProcessor(this);
+		sound = new SoundProcessor(getActivity());
+		ip = new ImageProcessor(getActivity());
 
-		database = new DatabaseHelper(this);
+		database = new DatabaseHelper(getActivity());
 
-		tvTitle = (TextView) findViewById(R.id.tvTitle);
+		tvTitle = (TextView) getActivity().findViewById(R.id.tvTitle);
 		tvTitle.setTypeface(null, Typeface.BOLD);
 
-		tvHymn = (TextView) findViewById(R.id.tvHymn);
+		tvHymn = (TextView) getActivity().findViewById(R.id.tvHymn);
 
-		tvCategory = (TextView) findViewById(R.id.tvCategory);
+		tvCategory = (TextView) getActivity().findViewById(R.id.tvCategory);
 		tvCategory.setTypeface(null, Typeface.BOLD_ITALIC);
 
-		ivSheet = (ImageView) findViewById(R.id.ivSheet);
+		ivSheet = (ImageView) getActivity().findViewById(R.id.ivSheet);
 		ivSheet.setOnClickListener(new View.OnClickListener() {
 
 			@Override
@@ -258,7 +264,7 @@ public class ShowHymn extends Activity implements OnTouchListener {
 								"image/*");
 						startActivity(intent);
 					} else {
-						final Toast toastError = Toast.makeText(ShowHymn.this,
+						final Toast toastError = Toast.makeText(getActivity(),
 								"Eroare!!!Nu sunteti conectat la internet",
 								Toast.LENGTH_LONG);
 						Thread t = new Thread(new Runnable() {
@@ -269,7 +275,7 @@ public class ShowHymn extends Activity implements OnTouchListener {
 								ip.setUrl(hymnNumber + "");
 								boolean isSuccessful = ip.getImageFromWeb();
 								if (isSuccessful) {
-									runOnUiThread(run);
+									getActivity().runOnUiThread(run);
 								} else {
 									toastError.show();
 								}
@@ -281,13 +287,13 @@ public class ShowHymn extends Activity implements OnTouchListener {
 			}
 		});
 
-		ivMP3 = (ImageView) findViewById(R.id.ivMP3);
+		ivMP3 = (ImageView) getActivity().findViewById(R.id.ivMP3);
 		ivMP3.setOnClickListener(new View.OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				progress = new ProgressDialog(ShowHymn.this);
+				progress = new ProgressDialog(getActivity());
 				progress.setCancelable(false);
 				progress.setMessage("Se incarca...");
 				progress.show();
@@ -313,7 +319,7 @@ public class ShowHymn extends Activity implements OnTouchListener {
 			}
 		});
 
-		hymnTextSize = (SeekBar) findViewById(R.id.sbTextSize);
+		hymnTextSize = (SeekBar) getActivity().findViewById(R.id.sbTextSize);
 		hymnTextSize.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 
 			@Override
@@ -339,7 +345,8 @@ public class ShowHymn extends Activity implements OnTouchListener {
 			}
 		});
 
-		ibPlayPause = (ImageButton) findViewById(R.id.ibPlayPause);
+		ibPlayPause = (ImageButton) getActivity()
+				.findViewById(R.id.ibPlayPause);
 
 		ibPlayPause.setOnClickListener(new View.OnClickListener() {
 
@@ -348,12 +355,12 @@ public class ShowHymn extends Activity implements OnTouchListener {
 				// TODO Auto-generated method stub
 				if (ibPlayPauseIsOnPlay) {
 					Bitmap scaledPause = Bitmap.createScaledBitmap(bmpPause,
-							mediaButtons, mediaButtons, false);
+							80, 80, false);
 					ibPlayPause.setImageBitmap(scaledPause);
 					sound.play();
 				} else {
-					Bitmap scaledPlay = Bitmap.createScaledBitmap(bmpPlay,
-							mediaButtons, mediaButtons, false);
+					Bitmap scaledPlay = Bitmap.createScaledBitmap(bmpPlay, 80,
+							80, false);
 					ibPlayPause.setImageBitmap(scaledPlay);
 					sound.pause();
 				}
@@ -361,24 +368,25 @@ public class ShowHymn extends Activity implements OnTouchListener {
 			}
 		});
 
-		ibStop = (ImageButton) findViewById(R.id.ibStop);
+		ibStop = (ImageButton) getActivity().findViewById(R.id.ibStop);
 		ibStop.setOnClickListener(new View.OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				Bitmap scaledPlay = Bitmap.createScaledBitmap(bmpPlay,
-						mediaButtons, mediaButtons, false);
+				Bitmap scaledPlay = Bitmap.createScaledBitmap(bmpPlay, 80, 80,
+						false);
 				ibPlayPause.setImageBitmap(scaledPlay);
 				sound.stop();
 				ibPlayPauseIsOnPlay = true;
 			}
 		});
 
-		llImageButtons = (LinearLayout) findViewById(R.id.llImageButtons);
+		llImageButtons = (LinearLayout) getActivity().findViewById(
+				R.id.llImageButtons);
 		setImageButtons();
 
-		ivFavorited = (ImageView) findViewById(R.id.ivFavorited);
+		ivFavorited = (ImageView) getActivity().findViewById(R.id.ivFavorited);
 
 		ivFavorited.setOnClickListener(new View.OnClickListener() {
 
@@ -389,14 +397,14 @@ public class ShowHymn extends Activity implements OnTouchListener {
 				if (isFavorited) {
 					database.removeFavorite(hymnNumber + "");
 					isFavorited = false;
-					t = Toast.makeText(ShowHymn.this,
+					t = Toast.makeText(getActivity(),
 							"Imnul \"" + hymnTitle.trim()
 									+ "\" a fost eliminat de la favorite.",
 							Toast.LENGTH_LONG);
 				} else {
 					database.addFavorite(hymnNumber + "");
 					isFavorited = true;
-					t = Toast.makeText(ShowHymn.this,
+					t = Toast.makeText(getActivity(),
 							"Imnul \"" + hymnTitle.trim()
 									+ "\" a fost adaugat la favorite.",
 							Toast.LENGTH_LONG);
@@ -410,20 +418,17 @@ public class ShowHymn extends Activity implements OnTouchListener {
 			sdkPermits = true;
 		}
 		if (sdkPermits) {
-			barColorizer = new BarColorizer(this, getActionBar());
+			barColorizer = new BarColorizer(getActivity(), getActivity()
+					.getActionBar());
 		}
 
-		swScroll = (ScrollView) findViewById(R.id.swScroll);
+		swScroll = (ScrollView) getActivity().findViewById(R.id.swScroll);
 		swScroll.setOnTouchListener(this);
 
 		gestureDetector = new GestureDetector(new MyGestureListener());
 		if (sdkPermits) {
-			getActionBar().setDisplayHomeAsUpEnabled(true);
+			getActivity().getActionBar().setDisplayHomeAsUpEnabled(true);
 		}
-		
-		PowerManager powerManager = (PowerManager)getSystemService(Context.POWER_SERVICE);
-		wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "My Lock");
-
 	}
 
 	private void updateHeartBitmap() {
@@ -439,99 +444,71 @@ public class ShowHymn extends Activity implements OnTouchListener {
 		int height;
 		int sdkVersion = android.os.Build.VERSION.SDK_INT;
 		if (sdkVersion >= 11) {
-			Display display = getWindowManager().getDefaultDisplay();
+			Display display = getActivity().getWindowManager()
+					.getDefaultDisplay();
 			Point size = new Point();
 			display.getSize(size);
 			height = size.y;
 		} else {
 			DisplayMetrics dm = new DisplayMetrics();
-			getWindowManager().getDefaultDisplay().getMetrics(dm);
+			getActivity().getWindowManager().getDefaultDisplay().getMetrics(dm);
 			height = dm.heightPixels; // 533 dip
 		}
 		int heartHeight = height / 15;
 
-		Bitmap scaledBmp = Bitmap.createScaledBitmap(heart,
-				favoriteHeartButton, favoriteHeartButton, false);
+		Bitmap scaledBmp = Bitmap.createScaledBitmap(heart, heartHeight,
+				heartHeight, false);
 		ivFavorited.setImageBitmap(scaledBmp);
 	}
 
 	private void setImageButtons() {
-		BitmapFactory.Options opts = new BitmapFactory.Options();
-		opts.inDither = false; // Disable Dithering mode
-		opts.inPurgeable = true; // Tell to gc that whether it needs free
-									// memory, the Bitmap can be cleared
-		opts.inInputShareable = true; // Which kind of reference will be used to
-										// recover the Bitmap data after being
-										// clear, when it will be used in the
-										// future
-		opts.inTempStorage = new byte[32 * 1024];
-
 		bmpPlay = BitmapFactory.decodeResource(getResources(), R.drawable.play);
-		Bitmap scaledPlay = Bitmap.createScaledBitmap(bmpPlay, mediaButtons,
-				mediaButtons, false);
+		Bitmap scaledPlay = Bitmap.createScaledBitmap(bmpPlay, 80, 80, false);
 		ibPlayPause.setImageBitmap(scaledPlay);
 
 		bmpPause = BitmapFactory.decodeResource(getResources(),
 				R.drawable.pause);
 
 		bmpStop = BitmapFactory.decodeResource(getResources(), R.drawable.stop);
-		Bitmap scaledStop = Bitmap.createScaledBitmap(bmpStop, mediaButtons,
-				mediaButtons, false);
+		Bitmap scaledStop = Bitmap.createScaledBitmap(bmpStop, 80, 80, false);
 		ibStop.setImageBitmap(scaledStop);
 	}
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		initSheetFile();
-		this.menu = menu;
-		getMenuInflater().inflate(R.menu.hymn_menu, menu);
+	/*
+	 * @Override public boolean onCreateOptionsMenu(Menu menu) {
+	 * initSheetFile(); this.menu = menu;
+	 * getMenuInflater().inflate(R.menu.hymn_menu, menu);
+	 * 
+	 * if (android.os.Build.VERSION.SDK_INT >= 14) { MenuItem item =
+	 * menu.findItem(R.id.action_share); ShareActionProvider
+	 * mShareActionProvider = (ShareActionProvider) item .getActionProvider();
+	 * if (mShareActionProvider != null) {
+	 * mShareActionProvider.setShareIntent(sharingIntent); } } else { MenuItem
+	 * item = menu.findItem(R.id.action_share); item.setVisible(false); } return
+	 * true; }
+	 */
 
-		if (android.os.Build.VERSION.SDK_INT >= 14) {
-			MenuItem item = menu.findItem(R.id.action_share);
-			ShareActionProvider mShareActionProvider = (ShareActionProvider) item
-					.getActionProvider();
-			if (mShareActionProvider != null) {
-				mShareActionProvider.setShareIntent(sharingIntent);
-			}
-		} else {
-			MenuItem item = menu.findItem(R.id.action_share);
-			item.setVisible(false);
-		}
-		return true;
-	}
-
-	@Override
-	public boolean onPrepareOptionsMenu(Menu menu) {
-		makeAllVisible();
-		// TODO Auto-generated method stub
-		if (musicSheet.exists()) {
-			MenuItem downloadSheet = menu.findItem(R.id.action_download_sheet);
-			downloadSheet.setVisible(false);
-		} else {
-			MenuItem openSheet = menu.findItem(R.id.action_open_sheet);
-			openSheet.setVisible(false);
-		}
-		int soundStatus = sound.getStatus();
-		if ((soundStatus == 1) || (soundStatus == 4) || (soundStatus == 3)) {
-			// daca nu e pe play
-			MenuItem stopMp3 = menu.findItem(R.id.action_stopmp3);
-			stopMp3.setVisible(false);
-			MenuItem loadMp3 = menu.findItem(R.id.action_loadmp3);
-			loadMp3.setVisible(false);
-		} else if (soundStatus == 2) {
-			MenuItem startMp3 = menu.findItem(R.id.action_playmp3);
-			startMp3.setVisible(false);
-			MenuItem loadMp3 = menu.findItem(R.id.action_loadmp3);
-			loadMp3.setVisible(false);
-		} else if (soundStatus == 0) {
-			MenuItem stopMp3 = menu.findItem(R.id.action_stopmp3);
-			stopMp3.setVisible(false);
-			MenuItem startMp3 = menu.findItem(R.id.action_playmp3);
-			startMp3.setVisible(false);
-		}
-
-		return super.onPrepareOptionsMenu(menu);
-	}
+	/*
+	 * @Override public boolean onPrepareOptionsMenu(Menu menu) {
+	 * makeAllVisible(); // TODO Auto-generated method stub if
+	 * (musicSheet.exists()) { MenuItem downloadSheet =
+	 * menu.findItem(R.id.action_download_sheet);
+	 * downloadSheet.setVisible(false); } else { MenuItem openSheet =
+	 * menu.findItem(R.id.action_open_sheet); openSheet.setVisible(false); } int
+	 * soundStatus = sound.getStatus(); if ((soundStatus == 1) || (soundStatus
+	 * == 4) || (soundStatus == 3)) { // daca nu e pe play MenuItem stopMp3 =
+	 * menu.findItem(R.id.action_stopmp3); stopMp3.setVisible(false); MenuItem
+	 * loadMp3 = menu.findItem(R.id.action_loadmp3); loadMp3.setVisible(false);
+	 * } else if (soundStatus == 2) { MenuItem startMp3 =
+	 * menu.findItem(R.id.action_playmp3); startMp3.setVisible(false); MenuItem
+	 * loadMp3 = menu.findItem(R.id.action_loadmp3); loadMp3.setVisible(false);
+	 * } else if (soundStatus == 0) { MenuItem stopMp3 =
+	 * menu.findItem(R.id.action_stopmp3); stopMp3.setVisible(false); MenuItem
+	 * startMp3 = menu.findItem(R.id.action_playmp3);
+	 * startMp3.setVisible(false); }
+	 * 
+	 * return super.onPrepareOptionsMenu(menu); }
+	 */
 
 	private void makeAllVisible() {
 		MenuItem downloadSheet = menu.findItem(R.id.action_download_sheet);
@@ -569,10 +546,10 @@ public class ShowHymn extends Activity implements OnTouchListener {
 		} else if (id == R.id.action_stopmp3) {
 			ibStop.performClick();
 		} else if (id == R.id.action_settings) {
-			Intent i = new Intent(this, Preferences.class);
+			Intent i = new Intent(getActivity(), Preferences.class);
 			startActivity(i);
 		} else if (id == android.R.id.home) {
-			this.finish();
+			getActivity().finish();
 		}
 
 		return super.onOptionsItemSelected(item);
@@ -584,44 +561,34 @@ public class ShowHymn extends Activity implements OnTouchListener {
 		public void run() {
 			// TODO Auto-generated method stub
 			ip.saveImageToSD(ip.getBitmap(), hymnNumber + ".jpeg");
-			Toast t = Toast.makeText(ShowHymn.this, "Partitura salvata",
+			Toast t = Toast.makeText(getActivity(), "Partitura salvata",
 					Toast.LENGTH_LONG);
 			t.show();
 
 			Bitmap bitmap = BitmapFactory.decodeResource(getResources(),
 					R.drawable.musicsheet_available);
 
-			Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap,
-					sheetAndMediaButtons, sheetAndMediaButtons, false);
+			Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, 100, 100,
+					false);
 			ivSheet.setImageBitmap(scaledBitmap);
 		}
 	};
 
-	@Override
-	public boolean onTouchEvent(MotionEvent event) {
-		// TODO Auto-generated method stub
-		int pointers = event.getPointerCount();
-		if (pointers == 3) {
-
-		} else if (pointers == 2) {
-			int action = event.getAction();
-			int pureaction = action & MotionEvent.ACTION_MASK;
-			if (pureaction == MotionEvent.ACTION_POINTER_DOWN) {
-				mBaseDist = getDistance(event);
-				mBaseRatio = mRatio;
-			} else {
-				float delta = (getDistance(event) - mBaseDist) / STEP;
-				float multi = (float) Math.pow(2, delta);
-				mRatio = Math.min(1024.0f, Math.max(0.1f, mBaseRatio * multi));
-				if (mRatio > 1.0f) {
-					mRatio = 1.0f;
-				}
-				tvHymn.setTextSize(mRatio * maxFontSize);
-				hymnTextSize.setProgress((int) (mRatio * maxFontSize));
-			}
-		}
-		return true;
-	}
+	/*
+	 * @Override public boolean onTouchEvent(MotionEvent event) { // TODO
+	 * Auto-generated method stub int pointers = event.getPointerCount(); if
+	 * (pointers == 3) {
+	 * 
+	 * } else if (pointers == 2) { int action = event.getAction(); int
+	 * pureaction = action & MotionEvent.ACTION_MASK; if (pureaction ==
+	 * MotionEvent.ACTION_POINTER_DOWN) { mBaseDist = getDistance(event);
+	 * mBaseRatio = mRatio; } else { float delta = (getDistance(event) -
+	 * mBaseDist) / STEP; float multi = (float) Math.pow(2, delta); mRatio =
+	 * Math.min(1024.0f, Math.max(0.1f, mBaseRatio * multi)); if (mRatio > 1.0f)
+	 * { mRatio = 1.0f; } tvHymn.setTextSize(mRatio * maxFontSize);
+	 * hymnTextSize.setProgress((int) (mRatio * maxFontSize)); } } return true;
+	 * }
+	 */
 
 	private int getDistance(MotionEvent event) {
 		int dx = (int) (event.getX(0) - event.getX(1));
@@ -629,40 +596,37 @@ public class ShowHymn extends Activity implements OnTouchListener {
 		return (int) (Math.sqrt(dx * dx + dy * dy));
 	}
 
-	@Override
-	public boolean onKeyDown(int keyCode, KeyEvent event) {
-		// TODO Auto-generated method stub
-
-		if (keyCode == KeyEvent.KEYCODE_BACK) {
-			finish();
-			return true;
-		}
-		return false;
-	}
+	/*
+	 * @Override public boolean onKeyDown(int keyCode, KeyEvent event) { // TODO
+	 * Auto-generated method stub
+	 * 
+	 * if (keyCode == KeyEvent.KEYCODE_BACK) { getActivity().finish(); return
+	 * true; } return false; }
+	 */
 
 	private void onLeftSwipe() {
-		if (Integer.parseInt(hymnNumber) != 900) {
-			Intent i = new Intent(getIntent());
-			i.putExtra("title", hymnTitle);
-			i.putExtra("number", (Integer.parseInt(hymnNumber) + 1) + "");
-			startActivity(i);
-			finish();
-			overridePendingTransition(R.anim.slide_in_right,
-					R.anim.slide_out_left);
-		}
+
 	}
 
 	private void onRightSwipe() {
-		if (Integer.parseInt(hymnNumber) != 1) {
-			Intent i = new Intent(getIntent());
-			i.putExtra("title", hymnTitle);
-			i.putExtra("number", (Integer.parseInt(hymnNumber) - 1) + "");
-			startActivity(i);
-			finish();
-			overridePendingTransition(R.anim.slide_out_right,
-					R.anim.slide_in_left);
-		}
+
 	}
+
+	/*
+	 * private void onLeftSwipe() { if (Integer.parseInt(hymnNumber) != 900) {
+	 * Intent i = new Intent(getIntent()); i.putExtra("title", hymnTitle);
+	 * i.putExtra("number", (Integer.parseInt(hymnNumber) + 1) + "");
+	 * startActivity(i); finish();
+	 * overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+	 * } }
+	 * 
+	 * private void onRightSwipe() { if (Integer.parseInt(hymnNumber) != 1) {
+	 * Intent i = new Intent(getIntent()); i.putExtra("title", hymnTitle);
+	 * i.putExtra("number", (Integer.parseInt(hymnNumber) - 1) + "");
+	 * startActivity(i); finish();
+	 * overridePendingTransition(R.anim.slide_out_right, R.anim.slide_in_left);
+	 * } }
+	 */
 
 	SimpleOnGestureListener simpleGesture = new SimpleOnGestureListener() {
 		private static final int SWIPE_MIN_DISTANCE = 120;
@@ -679,12 +643,12 @@ public class ShowHymn extends Activity implements OnTouchListener {
 				// right to left swipe
 				if (e1.getX() - e2.getX() > SWIPE_MIN_DISTANCE
 						&& Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
-					ShowHymn.this.onLeftSwipe();
+					// ShowHymnFragment.this.onLeftSwipe();
 				}
 				// left to right swipe
 				else if (e2.getX() - e1.getX() > SWIPE_MIN_DISTANCE
 						&& Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
-					ShowHymn.this.onRightSwipe();
+					// ShowHymnFragment.this.onRightSwipe();
 				}
 			} catch (Exception e) {
 
@@ -693,7 +657,7 @@ public class ShowHymn extends Activity implements OnTouchListener {
 		}
 	};
 
-	@Override
+	/*@Override
 	public boolean onTouch(View v, MotionEvent event) {
 		// TODO Auto-generated method stub
 		if (event.getAction() == MotionEvent.ACTION_DOWN) {
@@ -701,15 +665,10 @@ public class ShowHymn extends Activity implements OnTouchListener {
 			GestureDetector gdt = new GestureDetector(simpleGesture);
 			gdt.onTouchEvent(event);
 			Log.i("APP", "Touched");
-			int currentapiVersion = android.os.Build.VERSION.SDK_INT;
-			if (currentapiVersion > 11) {
-				return true;
-			} else {
-				return false;
-			}
+			return true;
 		}
 		return false;
-	}
+	}*/
 
 	class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
 
@@ -736,11 +695,11 @@ public class ShowHymn extends Activity implements OnTouchListener {
 
 				if (dX > 0) {
 					// rightSwipe
-					ShowHymn.this.onRightSwipe();
+					ShowHymnFragment.this.onRightSwipe();
 
 				} else {
 					// leftSwipe
-					ShowHymn.this.onLeftSwipe();
+					ShowHymnFragment.this.onLeftSwipe();
 				}
 
 				return true;
@@ -780,9 +739,9 @@ public class ShowHymn extends Activity implements OnTouchListener {
 				// getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 				int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 				if (currentapiVersion >= 11) {
-					getActionBar().hide();
+					getActivity().getActionBar().hide();
 				}
-				View decorView = getWindow().getDecorView();
+				View decorView = getActivity().getWindow().getDecorView();
 				int uiOptions = View.SYSTEM_UI_FLAG_LOW_PROFILE
 						| View.SYSTEM_UI_FLAG_FULLSCREEN;
 				decorView.setSystemUiVisibility(uiOptions);
@@ -790,15 +749,21 @@ public class ShowHymn extends Activity implements OnTouchListener {
 			} else {
 				int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 				if (currentapiVersion >= 11) {
-					getActionBar().show();
+					getActivity().getActionBar().show();
 				}
-				View decorView = getWindow().getDecorView();
+				View decorView = getActivity().getWindow().getDecorView();
 				decorView.setSystemUiVisibility(0);
 			}
 			isFullscreened = !isFullscreened;
 			return super.onDoubleTap(e);
 
 		}
+	}
+
+	@Override
+	public boolean onTouch(View v, MotionEvent event) {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 }

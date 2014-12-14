@@ -3,7 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
 
-    <ScrollView
+    <ro.tineribanat.imnuri900.workers.ScrollWidget
+        android:id="@+id/swScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_above="@+id/sbTextSize"
@@ -13,20 +14,6 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content" >
-
-            <LinearLayout
-                android:id="@+id/linearLayout1"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:orientation="horizontal" >
-
-                <ImageView
-                    android:id="@+id/ivSheet"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:src="@drawable/abc_ab_share_pack_holo_dark" />
-            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvHymn"
@@ -41,17 +28,6 @@
                 android:textAppearance="?android:attr/textAppearanceSmall" />
 
             <TextView
-                android:id="@+id/tvTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_below="@+id/tvCategory"
-                android:layout_centerHorizontal="true"
-                android:paddingBottom="20dip"
-                android:paddingTop="20dip"
-                android:text="Title"
-                android:textAppearance="?android:attr/textAppearanceLarge" />
-
-            <TextView
                 android:id="@+id/tvCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -62,16 +38,70 @@
                 android:paddingTop="20dip"
                 android:text="Category" />
 
-            <ImageView
-                android:id="@+id/ivMP3"
+            <TextView
+                android:id="@+id/tvTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/tvHymn"
+                android:layout_below="@+id/llImageButtons"
                 android:layout_centerHorizontal="true"
-                android:layout_marginTop="60dp"
-                android:src="@drawable/abc_ab_solid_light_holo" />
+                android:layout_marginTop="26dp"
+                android:paddingBottom="20dip"
+                android:text="Title"
+                android:textAppearance="?android:attr/textAppearanceLarge" />
+
+            <LinearLayout
+                android:id="@+id/linearLayout1"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_below="@+id/tvCategory"
+                android:gravity="center"
+                android:orientation="horizontal" >
+
+                <ImageView
+                    android:id="@+id/ivMP3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignTop="@+id/ivSheet"
+                    android:layout_toLeftOf="@+id/tvCategory" />
+
+                <ImageView
+                    android:id="@+id/ivSheet"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_above="@+id/tvTitle"
+                    android:layout_toRightOf="@+id/tvTitle" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llImageButtons"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_below="@+id/linearLayout1"
+                android:visibility="gone"
+                android:gravity="center" >
+
+                <ImageButton
+                    android:id="@+id/ibPlayPause"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <ImageButton
+                    android:id="@+id/ibStop"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/ivFavorited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true" />
+
         </RelativeLayout>
-    </ScrollView>
+    </ro.tineribanat.imnuri900.workers.ScrollWidget>
 
     <SeekBar
         android:id="@+id/sbTextSize"
